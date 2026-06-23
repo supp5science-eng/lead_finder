@@ -1,0 +1,133 @@
+# lead_finder
+
+A small CLI tool that builds a **lead list of local businesses** for a given
+category (or a whole sector) across the municipalities of a city, using the
+**Google Places API (New)**. The result is a CSV you open in Excel and filter
+by hand to decide who to approach with a website offer.
+
+The tool only **finds and pre-filters** leads. It does **not** build sites,
+scrape Instagram, or send any outreach — it just collects what Places returns
+and marks whether each business has a real website, only social media, or none.
+
+---
+
+## 1. Get a Google Places API key
+
+1. Go to <https://console.cloud.google.com/> and create (or pick) a project.
+2. Enable **billing** on the project. Google gives a recurring free monthly
+   credit that covers a lot of searches, but billing must be on.
+3. In **APIs & Services → Library**, search for and enable **Places API (New)**.
+   (The one whose endpoint is `places.googleapis.com` — not the legacy one.)
+4. In **APIs & Services → Credentials**, click **Create credentials → API key**.
+5. Copy the key. Optionally restrict it to the *Places API (New)* for safety.
+
+## 2. Set the key as an environment variable
+
+The key is read from `GOOGLE_PLACES_API_KEY` and is **never** stored in the code.
+
+```bash
+# Linux / macOS
+export GOOGLE_PLACES_API_KEY="AIza...your-key..."
+
+# Windows (PowerShell)
+$env:GOOGLE_PLACES_API_KEY="AIza...your-key..."
+```
+
+## 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+## 4. Run it
+
+```bash
+# one specific category
+python lead_finder.py "ordinacija zuba"
+
+# an entire sector (all its categories, across all zones)
+python lead_finder.py --sector zanati
+
+# everything (all sectors, all zones) — biggest run, watch your quota
+python lead_finder.py --all
+```
+
+When it finishes you get **`lista.csv`** in the current folder, plus a short
+summary in the terminal (how many unique businesses, and a breakdown by
+priority).
+
+---
+
+## Output columns
+
+`lista.csv` is UTF-8 with a BOM, so Serbian letters (ćčšžđ) display correctly
+in Excel. Columns:
+
+| column          | meaning                                                        |
+|-----------------|----------------------------------------------------------------|
+| `kategorija`    | the business category that matched                              |
+| `sektor`        | the sector the category belongs to                              |
+| `naziv`         | business name                                                   |
+| `adresa`        | address                                                         |
+| `telefon`       | phone (blank if Places has none)                                |
+| `sajt`          | website URL, or `NEMA SAJT`                                      |
+| `status_sajta`  | `NEMA` / `SAMO DRUŠTVENE` / `IMA SAJT`                           |
+| `prioritet`     | 1 = hottest lead … 4 = probably skip (see below)                |
+| `https`         | `da`/`ne` — only for `IMA SAJT`                                  |
+| `free_subdomen` | `da`/`ne` — Wix/WordPress/etc. free subdomain                   |
+| `dostupan`      | HTTP status (e.g. `200`), or `404`/`mrtav` for a dead link      |
+| `rating`        | Google rating                                                   |
+| `recenzije`     | number of reviews                                               |
+| `maps`          | Google Maps link                                                |
+
+### What `status_sajta` means
+
+- **`NEMA`** — no website at all.
+- **`SAMO DRUŠTVENE`** — the "website" points to Facebook/Instagram/Wolt/Glovo etc.
+- **`IMA SAJT`** — a real domain.
+
+### Priority (auto-computed, just for sorting)
+
+The CSV is sorted by `prioritet` so the best leads are at the top:
+
+- **1** — `NEMA` (no site). Hottest.
+- **2** — `SAMO DRUŠTVENE`, or `IMA SAJT` with a **dead link** (404 / mrtav).
+- **3** — `IMA SAJT` but on a **free subdomain** or **without https**.
+- **4** — `IMA SAJT`, https, real domain, live. Likely skip.
+
+It's only a hint — you make the final call.
+
+---
+
+## Useful flags
+
+| flag                | what it does                                                   |
+|---------------------|----------------------------------------------------------------|
+| `--sector NAME`     | run a whole sector (see list below)                            |
+| `--all`             | run every sector                                                |
+| `--city NAME`       | city name, default `Beograd`                                    |
+| `--zones "A,B,C"`   | custom comma-separated zones (default: Belgrade municipalities) |
+| `--output PATH`     | output file, default `lista.csv`                                |
+| `--max-pages N`     | result pages per query, 1–3 (default 3). Use `1` to save quota. |
+| `--no-check-live`   | skip the HTTP liveness check — faster, leaves `dostupan` blank  |
+| `--page-delay SECS` | wait before fetching the next page (default 2.5s)               |
+
+Sectors: `zdravlje`, `lepota`, `ugostiteljstvo`, `zanati`, `auto`,
+`edukacija`, `trgovina`, `dogadjaji`.
+
+To add/remove categories or zones, edit `CATEGORIES_BY_SECTOR` and
+`DEFAULT_ZONES` near the top of `lead_finder.py`.
+
+---
+
+## A note on cost
+
+`--all` is roughly *(number of categories) × (number of zones) × up to 3 pages*
+of API calls — that can be a few thousand requests. The free monthly credit
+usually covers a lot, but while you're testing use:
+
+```bash
+python lead_finder.py --sector zdravlje --max-pages 1 --no-check-live
+```
+
+to keep both the API quota and the run time small.
