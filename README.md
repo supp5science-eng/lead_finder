@@ -1,43 +1,41 @@
-# lead_finder
+# Lead Finder
 
-A small CLI tool that builds a **lead list of local businesses** for a given
-category (or a whole sector) across the municipalities of a city, using the
-**Google Places API (New)**. The result is a CSV you open in Excel and filter
-by hand to decide who to approach with a website offer.
+A command-line tool that finds local businesses that need a website, so you know exactly who to pitch.
 
-The tool only **finds and pre-filters** leads. It does **not** build sites,
-scrape Instagram, or send any outreach — it just collects what Places returns
-and marks whether each business has a real website, only social media, or none.
+It searches the Google Places API (New) across every municipality of a city, removes duplicates, checks each business's website (none, only social media, dead link, free subdomain, no HTTPS) and writes a CSV sorted by how good a lead each business is.
+
+**Real run (Belgrade):** 2,394 unique businesses found, 751 of them without a website. I used the list to build 12 websites for sales pitches. Case study: [markobera.com/work/dental](https://www.markobera.com/work/dental/)
+
+**Stack:** Python, Google Places API (New), `requests`
 
 ---
 
-## 1. Get a Google Places API key
-
-1. Go to <https://console.cloud.google.com/> and create (or pick) a project.
-2. Enable **billing** on the project. Google gives a recurring free monthly
-   credit that covers a lot of searches, but billing must be on.
-3. In **APIs & Services → Library**, search for and enable **Places API (New)**.
-   (The one whose endpoint is `places.googleapis.com` — not the legacy one.)
-4. In **APIs & Services → Credentials**, click **Create credentials → API key**.
-5. Copy the key. Optionally restrict it to the *Places API (New)* for safety.
-
-## 2. Set the key as an environment variable
-
-The key is read from `GOOGLE_PLACES_API_KEY` and is **never** stored in the code.
-
-```bash
-# Linux / macOS
-export GOOGLE_PLACES_API_KEY="AIza...your-key..."
-
-# Windows (PowerShell)
-$env:GOOGLE_PLACES_API_KEY="AIza...your-key..."
-```
-
-## 3. Install dependencies
+## 1. Install
 
 ```bash
 pip install -r requirements.txt
 ```
+
+## 2. Get a Google Places API key
+
+1. Open the [Google Cloud Console](https://console.cloud.google.com/) and create a project.
+2. Go to **APIs & Services → Library**, find **Places API (New)** and click **Enable**.
+3. Go to **APIs & Services → Credentials → Create credentials → API key**.
+4. Recommended: restrict the key to Places API (New) under **API restrictions**.
+
+## 3. Set the key
+
+```bash
+# macOS / Linux
+export GOOGLE_PLACES_API_KEY="your-key"
+```
+
+```powershell
+# Windows PowerShell
+$env:GOOGLE_PLACES_API_KEY = "your-key"
+```
+
+The key is only read from the environment and never written to disk.
 
 ## 4. Run it
 
